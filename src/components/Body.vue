@@ -82,7 +82,7 @@ import axios from 'axios'
     },
     computed: {
       user: function () {
-        return this.$store.getters.loggedUser
+        return this.$store.getters.loggedUser.oracleId;
       },
       cannotSubmit: function () {
         let ret = (this.dataForm.passwordOne.length === 0 || this.dataForm.passwordTwo.length === 0 || this.$validator.errors.any());

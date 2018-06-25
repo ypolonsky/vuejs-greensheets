@@ -182,7 +182,8 @@ import axios from 'axios'
           this.showCriteriaClass = (this.showCriteria) ? 'fa-minus-circle' : 'fa-plus-circle'
         },
         onGrantsFromSelect () {
-          console.log('On GrantFrom select ' + this.searchCriteria.searchType);
+          console.log('On GrantFrom select search type is ' + this.searchCriteria.searchType);
+          var selectedCancerActivities = this.searchCriteria.cancerActivities;
           if (this.searchCriteria.searchType === 'MY_PORTFOLIO') {
             this.cancerActivities = this.$store.getters.loggedUser.pca
           } else if (this.searchCriteria.searchType === 'MY_CANCER_ACTIVITY') {
@@ -190,6 +191,7 @@ import axios from 'axios'
           } else {
             this.cancerActivities = this.allCancerActivities
           }
+          this.searchCriteria.cancerActivities = selectedCancerActivities; // restore the selection
         },
         getCurrentFiscalYear () {
           let today = new Date();
@@ -198,94 +200,134 @@ import axios from 'axios'
             fy++;
           }
           return fy;
+        },
+        initializeSearchTypes () {
+          // Initialize the choices for search types depending on user role
+          if (this.$store.getters.isProgramDirector) {
+            this.searchTypes = [
+              {
+                value: 'MY_PORTFOLIO', text: 'My Portfolio'
+              },
+              {
+                value: 'MY_CANCER_ACTIVITY',
+                text: 'My Cancer Activity (' + this.$store.getters.loggedUser.ca.toString() + ')'
+              },
+              {
+                value: 'ALL_NCI_GRANTS', text: 'All NCI Grants'
+              }
+            ];
+          } else if (this.$store.getters.isProgramStaff) {
+            this.searchTypes = [
+              {
+                value: 'MY_CANCER_ACTIVITY',
+                text: 'My Cancer Activity (' + this.$store.getters.loggedUser.ca.toString() + ')'
+              },
+              {
+                value: 'ALL_NCI_GRANTS', text: 'All NCI Grants'
+              }
+            ]
+          } else { // rest of the world
+            this.searchTypes = [
+              {
+                value: 'ALL_NCI_GRANTS', text: 'All NCI Grants'
+              }
+            ]
+          }
+        },
+        initializeCriteriaAndChoices (storeSC) {
+          console.log('initializeCriteriaAndChoices: start, storeRC is ' + storeSC);
+
+          this.initializeSearchTypes();
+          if (storeSC === undefined || storeSC === null) {
+            storeSC = {};
+            if (this.$store.getters.isProgramDirector) {
+              storeSC.searchType = 'MY_PORTFOLIO';
+            } else if (this.$store.getters.isProgramStaff) {
+              storeSC.searchType = 'MY_CANCER_ACTIVITY';
+            } else {
+              storeSC.searchType = 'ALL_NCI_GRANTS';
+            }
+            storeSC.cancerActivities = [];
+            storeSC.mechanisms = [];
+            storeSC.grantIc = 'CA';
+            storeSC.fiscalYear = this.getCurrentFiscalYear();
+            storeSC.currentFiscalYear = this.getCurrentFiscalYear();
+            storeSC.minorityFlag = false;
+            storeSC.withinPayline = true;
+            storeSC.nonCompeting = true;
+            storeSC.competingOutOfPayline = false;
+
+            this.$store.commit('updateSearchCriteria', storeSC);
+          }
+          this.searchCriteria = storeSC;
+          console.log('Before onGrantFromSelect() select search typer is ' + storeSC.searchType);
+          this.onGrantsFromSelect();
+        },
+        runAutosearch () {
+          console.log('PdSearchCriteria: runAutosearch()');
+          if (this.$store.getters.isAutosearch) {
+            this.$store.commit('setAutosearch', false);
+            this.$emit('clicked-search-criteria', this.$store.getters.searchCriteria);
+          } else if (this.$store.getters.isProgramDirector) {
+            console.log('Auto search for program director');
+            this.$emit('clicked-search-criteria', this.$store.getters.searchCriteria);
+          } else {
+            console.log('PdSearchCriteria: emit reset-search-results');
+            this.$emit('reset-search-results');
+          }
+        },
+        onChangeUser () {
+          console.log('PdSearchCriteria: onChangeUser() - change user to ' + this.$store.getters.loggedUserName);
+          this.initializeCriteriaAndChoices(null);
+          this.runAutosearch();
         }
       },
+      created () {
+        this.$store.watch(
+          state => state.user,
+          (newValue, oldValue) => { this.onChangeUser(); }
+        );
+      },
       beforeMount () {
-        console.log('PdSearchCriteria: before mount');
-        let storeSC = this.$store.getters.searchCriteria;
+        console.log('PdSearchCriteria: before mount - ' + this.$store);
+        console.log('PdSearchCriteria: before mount - user = ' + this.$store.getters.loggedUserName);
+        console.log('PdSearchCriteria: before mount - criteria = ' + this.$store.getters.searchCriteria);
+        console.log('PdSearchCriteria: before mount - searchCriteria.withinPayline = ' + this.searchCriteria.withinPayline);
 
-        // INITIALIZE Search Criteria for logged user
-        if (storeSC === undefined || storeSC === null) {
-          console.log('before mount: searchCriteria is empty');
-          storeSC = {};
-          if (this.$store.getters.isProgramDirector) {
-            storeSC.searchType = 'MY_PORTFOLIO';
-          } else if (this.$store.getters.isProgramStaff) {
-            storeSC.searchType = 'MY_CANCER_ACTIVITY';
-          } else {
-            storeSC.searchType = 'ALL_NCI_GRANTS';
-          }
-          storeSC.cancerActivities = [];
-          storeSC.mechanisms = [];
-          storeSC.grantIc = 'CA';
-          storeSC.fiscalYear = this.getCurrentFiscalYear();
-          storeSC.currentFiscalYear = this.getCurrentFiscalYear();
-          storeSC.minorityFlag = false;
-          storeSC.withinPayline = true;
-          storeSC.nonCompeting = true;
-          storeSC.competingOutOfPayline = false;
-
-          this.$store.commit('updateSearchCriteria', storeSC);
-        }
-        this.searchCriteria = storeSC;
-
-        if (this.$store.getters.isProgramDirector) {
-          this.searchTypes = [
-            {
-              value: 'MY_PORTFOLIO',
-              text: 'My Portfolio'
-            },
-            {
-              value: 'MY_CANCER_ACTIVITY',
-              text: 'My Cancer Activity (' + this.$store.getters.loggedUser.ca.toString() + ')'
-            },
-            {
-              value: 'ALL_NCI_GRANTS',
-              text: 'All NCI Grants'
-            }
-          ];
-        } else { // TODO - should be check against program staff
-          this.searchTypes = [
-            {
-              value: 'MY_CANCER_ACTIVITY',
-              text: 'My Cancer Activity (' + this.$store.getters.loggedUser.ca.toString() + ')'
-            },
-            {
-              value: 'ALL_NCI_GRANTS',
-              text: 'All NCI Grants'
-            }
-          ]
-        }
-        // reset the selected value
-        this.searchCriteria.searchType = this.$store.getters.searchCriteria.searchType;
-
+        // Retrieve all cancer activities
         axios.get(this.$i18n.t('url.allCancerActivities', { host: window.webapihost })).then(response => {
           console.log('Invoked allCancerActivities - done');
           console.log(response.data);
           this.allCancerActivities = response.data.data;
           console.log('Received ' + this.allCancerActivities.length + ' cancer activities');
+          // Reset the dropdown and selection
           this.onGrantsFromSelect();
-          this.searchCriteria.cancerActivities = this.$store.getters.searchCriteria.cancerActivities;
+          if (this.$store.getters.searchCriteria) {
+            this.searchCriteria.cancerActivities = this.$store.getters.searchCriteria.cancerActivities;
+          }
         }).catch((error) => {
           console.log('Cannot access URL allCancerActivities.json!' + error);
         })
 
+        // Retrieve the list of all mechanisms
         axios.get(this.$i18n.t('url.allMechanisms', { host: window.webapihost })).then(response => {
           console.log('Invoked allMechanisms - done');
           console.log(response.data);
           this.mechanisms = response.data.data;
           console.log('Received ' + this.mechanisms.length + ' mechanisms');
-          this.searchCriteria.mechanisms = this.$store.getters.searchCriteria.mechanisms;
+          if (this.$store.getters.searchCriteria) {
+            this.searchCriteria.mechanisms = this.$store.getters.searchCriteria.mechanisms;
+          }
         }).catch((error) => {
           console.log('Cannot access URL allCancerActivities.json!' + error);
         })
-        console.log('before mount: searchCriteria.withinPayline = ' + this.searchCriteria.withinPayline);
+
+        // Initialize the search criteria
+        let storeSC = this.$store.getters.searchCriteria;
+        this.initializeCriteriaAndChoices(storeSC);
       },
       mounted () {
-        if (this.$store.getters.isProgramDirector) {
-          console.log('Auto search for program director');
-          this.$emit('clicked-search-criteria', this.$store.getters.searchCriteria);
-        }
+        this.runAutosearch();
       }
     }
 </script>

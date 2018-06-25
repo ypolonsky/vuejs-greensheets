@@ -7,8 +7,7 @@ Vue.use(Vuex)
 
 export const store = new Vuex.Store({
   state: {
-    user: 'Non-identified User',
-    changedUser: null,
+    user: { loggedUser: 'Non-identified User', changedUser: null },
     tier: 'Development',
     version: '1.0.0.1112344',
     commentEmail: 'techsupport@nih.gov',
@@ -19,20 +18,24 @@ export const store = new Vuex.Store({
     // Storage for database configuration properties
     conf: null,
     // Search criteria for logged user
-    searchCriteria: null
+    searchCriteria: null,
+    autosearch: false
   },
   getters: {
     isAuthorized: (state) => {
-      return (state.user != null && state.user !== '')
+      return (state.user != null && state.user.loggedUser.fullName !== null)
     },
     loggedUserName: state => {
-      return (state.changedUser != null) ? state.changedUser.fullName : ((state.user.fullName === undefined) ? state.user : state.user.fullName)
+      console.log('SEE ' + state.user + ' | ' + state.user.changedUser + ' | ' + state.user.loggedUser);
+      return (state.user && state.user.changedUser != null) ? state.user.changedUser.fullName
+        : ((state.user.loggedUser.fullName === undefined) ? state.user.loggedUser : state.user.loggedUser.fullName)
     },
     loggedUser: state => {
-      return (state.changedUser != null) ? state.changedUser : state.user
+      return (state.user.changedUser != null) ? state.user.changedUser : state.user.loggedUser
     },
     oracleId: state => {
-      return (state.changedUser != null) ? state.changedUser.oracleId : ((state.user.oracleId === undefined) ? state.user : state.user.oracleId)
+      return (state.user.changedUser != null) ? state.user.changedUser.oracleId
+        : ((state.user.oracleId === undefined) ? state.user : state.user.oracleId)
     },
     tier: (state) => {
       return state.tier
@@ -47,6 +50,7 @@ export const store = new Vuex.Store({
     commentEmail: (state) => {
       return state.commentEmail
     },
+    // TODO - remove developer role - get it from user roles
     developerRole: (state) => {
       return state.developerRole
     },
@@ -60,6 +64,7 @@ export const store = new Vuex.Store({
       return state.alertMessage
     },
     conf: state => {
+      console.log('Return conf from store = ' + state.conf)
       return state.conf
     },
     isProgramStaff: (state, getters) => {
@@ -76,14 +81,14 @@ export const store = new Vuex.Store({
     },
     searchCriteria: state => {
       return state.searchCriteria;
+    },
+    isAutosearch: state => {
+      return state.autosearch;
     }
   },
   mutations: {
     updateUser: (state, newuser) => {
       state.user = newuser
-    },
-    updateChangedUser: (state, newuser) => {
-      state.changedUser = newuser
     },
     updateAlert: (state, payload) => {
       state.alertType = payload.msgType
@@ -92,9 +97,14 @@ export const store = new Vuex.Store({
     },
     updateConf: (state, payload) => {
       state.conf = payload
+      console.log('Update conf in store = ' + state.conf)
     },
     updateSearchCriteria: (state, payload) => {
       state.searchCriteria = payload
+      console.log('Store criteria is ' + state.searchCriteria)
+    },
+    setAutosearch: (state, payload) => {
+      state.autosearch = payload;
     }
   }
 })

@@ -14,8 +14,6 @@ Vue.use(Router)
 export default new Router({
   mode: 'history',
   base: '/vv/', // only for development
-  // base: '/vuejs/',
-  // base: '/greensheets-data/vv/',
   routes: [
     {
       path: '/hello',

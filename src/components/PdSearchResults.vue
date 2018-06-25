@@ -1,6 +1,6 @@
 <template>
 <div class="col-md-12">
-  <pd-search-criteria @clicked-search-criteria="startSearch"></pd-search-criteria>
+  <pd-search-criteria @clicked-search-criteria="startSearch" @reset-search-results="resetSearch"></pd-search-criteria>
   <div class="col-md-12">
     <table>
       <tr>
@@ -55,7 +55,8 @@ import GsmGsIconRenderer from './GmsGsIconRenderer.vue'
         gridOptions: [],
         columnDefs: [],
         showGrid: true,
-        showToolPanel: false
+        showToolPanel: false,
+        proceedGetRows: false
       }
     },
     components: {
@@ -110,9 +111,16 @@ import GsmGsIconRenderer from './GmsGsIconRenderer.vue'
           }
         ]
       },
+      resetSearch () {
+        console.log('Reset Search results');
+        if (this.gridOptions && this.gridOptions.api) {
+          this.gridOptions.api.setInfiniteRowCount(0, true)
+        }
+      },
       startSearch (criteria) {
         console.log('Start Search with parameters: ' + criteria.searchType + ',' + criteria.cancerActivities + ',' + criteria.mechanisms + ',' + criteria.grantType + ',' + criteria.grantMech + ',' + criteria.grantIc);
-        this.searchCriteria = criteria; // TODO - save the criteria in store
+        this.searchCriteria = criteria;
+        this.$store.commit('updateSearchCriteria', criteria);
         if (this.gridOptions && this.gridOptions.api) {
           var maxCount = this.gridOptions.api.getInfiniteRowCount()
           console.log('Infinite Row Count = ' + maxCount)
@@ -120,8 +128,6 @@ import GsmGsIconRenderer from './GmsGsIconRenderer.vue'
           this.gridOptions.api.purgeInfiniteCache();
           console.log('selector: ' + document.querySelector('#pdgrid').style.height);
           console.log('domlayout: ' + this.gridOptions.domLayout);
-          // this.gridOptions.domLayout = 'autoHeight';
-          document.querySelector('#pdgrid').style.height = '';
         }
       },
       isAdditionalFilter () {
@@ -150,9 +156,14 @@ import GsmGsIconRenderer from './GmsGsIconRenderer.vue'
           return '';
         }
         return moment(params.value).format('MM/DD/YYYY')
+      },
+      openGreensheet (applId, type) {
+        console.log('Attempt to open ' + applId + '/' + type);
+        this.$router.push({ name: 'View Greensheet', params: { applId: applId, type: type } });
       }
     },
     beforeMount () {
+      console.log('Program Search : beforeMount()');
       this.createHeader();
       var self = this;
       var datasource = {
@@ -160,14 +171,14 @@ import GsmGsIconRenderer from './GmsGsIconRenderer.vue'
           self.gridOptions.api.hideOverlay(); // hide "no rows" message if any
           console.log('asking for ' + params.startRow + ' to ' + params.endRow);
           // TODO - find out why ag-grid initializes data twice
-          if (params.context != null && params.context.proceedGetRows === undefined) {
-            params.context.proceedGetRows = true;
+          if (params.context != null && (self.proceedGetRows === undefined || !self.proceedGetRows)) {
+            self.proceedGetRows = true;
             console.log('skip initial rows retrieval!');
             params.successCallback([], 0);
             return;
           }
           if (self.searchCriteria === undefined || self.searchCriteria === null) {
-            params.context.proceedGetRows = true;
+            self.proceedGetRows = true;
             console.log('No Search Criteria Specified to getRows()');
             params.successCallback([], 0);
             return;
@@ -212,7 +223,7 @@ import GsmGsIconRenderer from './GmsGsIconRenderer.vue'
         }
       };
       this.gridOptions = {
-        context: {},
+        context: this,
         enableServerSideSorting: true,
         rowModelType: 'infinite',
         infiniteInitialRowCount: 1,

@@ -46,7 +46,7 @@
                           <v-autocomplete :items="users" v-model="changedUser" :get-label="getLabel" :min-len="2"
                                           :component-item="autocompleteItem"
                                           @update-items="updateItems" :input-attrs="{class: 'form-control', placeholder: 'Enter First or Last Name'}"
-                                          @item-clicked="itemClicked" @item-selected="userChanged"
+                                          @item-selected="userChanged"
                                           :auto-select-one-item="false"></v-autocomplete>
                         </div>
                       </div>
@@ -67,7 +67,7 @@
 /* eslint-disable semi */
 import axios from 'axios'
 import autocompleteItem from './AutocompleteUser'
-import { store } from '../store/store'
+// import { store } from '../store/store'
 import jquery from 'jquery'
 
   export default {
@@ -80,7 +80,6 @@ import jquery from 'jquery'
     },
     methods: {
       updateItems (text) {
-        // TODO - we will never get short text - find another solution
         if (text.length < 2) {
           console.log('text is too short' + text);
           this.users = [];
@@ -97,26 +96,24 @@ import jquery from 'jquery'
         }
         return '';
       },
-      itemClicked (item) {
-        console.log('Clicked item:', item);
-        // this.changedUser = item;
-      },
       userChanged (item) {
         console.log('Changing user to ' + item.nihNetworkId);
+        var self = this;
         axios.get(this.$i18n.t('url.userInfo', { host: window.webapihost }), {params: {changeUser: item.nihNetworkId}}).then(response => {
-          console.log('from' + response.data.user.nihNetworkId + ' to ' + response.data.changedUser.nihNetworkId);
-          store.commit('updateUser', response.data.user);
-          store.commit('updateChangedUser', response.data.changedUser);
-          store.commit('updateSearchCriteria', null);
-          console.log('userChanged() refs.menuChangeUser after change user: ', this.$refs.menuChangeUser);
-          if (this.$refs.menuChangeUser.getAttribute('aria-expanded') !== 'false') {
+          console.log('from ' + response.data.user.nihNetworkId + ' to ' + response.data.changedUser.nihNetworkId);
+          var user = {};
+          user.loggedUser = response.data.user;
+          user.changedUser = response.data.changedUser;
+          self.$store.commit('updateSearchCriteria', null);
+          self.$store.commit('updateUser', user);
+          if (self.$refs.menuChangeUser.getAttribute('aria-expanded') !== 'false') {
             console.log('userChanged()  - toggle dropdown');
-            jquery(this.$refs.menuChangeUser).dropdown('toggle');
+            jquery(self.$refs.menuChangeUser).dropdown('toggle');
             jquery.post()
           }
-          this.changedUser = '';
+          this.changedUser = null;
           this.users = [];
-          this.$router.go('/pdsearch');
+          console.log('ChangeUser: new user = ', self.$store.getters.loggedUserName);
         }).catch(() => {
           console.log('Cannot access URL! change user');
         })
@@ -125,7 +122,7 @@ import jquery from 'jquery'
     },
     computed: {
       user: function () {
-        console.log('user - ' + this.$store)
+        console.log('Header: user - ' + this.$store.getters.loggedUserName)
         return this.$store.getters.loggedUserName
       },
       production: function () {
@@ -138,7 +135,14 @@ import jquery from 'jquery'
         return this.$store.getters.versionLabel
       },
       workbenchUrl: function () {
-        return (this.$store.getters.conf) ? this.$store.getters.conf.URL_WORKBENCH : ''
+        var cnf = this.$store.getters.conf;
+        console.log('workbenchURL - conf = ' + cnf)
+        var ret = '';
+        if (cnf !== null && cnf !== undefined) {
+          ret = cnf.URL_WORKBENCH;
+        }
+        console.log('workbenchURL - returns = ' + ret)
+        return ret;
       },
       commentEmail: function () {
         return this.$store.getters.commentEmail

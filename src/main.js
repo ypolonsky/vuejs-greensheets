@@ -33,25 +33,25 @@ const i18n = new VueI18n({
 
 router.beforeEach((to, from, next) => {
   console.log('global beforeEach');
-  console.log('Routing to: ', to.name);
+  console.log('Routing from: ' + from.name + ' to: ' + to.name);
   console.log('Configuration: ', store.getters.conf);
 
   if (to.name === 'NotAuthorized' || to.name === 'showAlert') {
     next();
   } else if (store.getters.conf === null) {
-    console.log('Host: ' + window.location.hostname);
-    console.log('Path: ' + window.location.origin);
+    // Load application configuration if it has not been loaded
+    console.log('Load configuration: host: ' + window.location.hostname + ' path: ' + window.location.origin);
     axios.get(i18n.t('url.reload', { host: window.webapihost }), {params: { appname: 'CHANGEPASSWORD' }}).then(response => {
       console.log('Done with url.reload');
       store.commit('updateConf', response.data.conf);
 
-      // Get the user information if first call succeed
+      // Get the user information if load configuration succeed
       axios.get(i18n.t('url.userInfo', { host: window.webapihost })).then(response => {
         console.log('Done with url.userInfo');
-        console.log(response.data);
-        store.commit('updateUser', response.data.user);
-        store.commit('updateChangedUser', response.data.changedUser);
+        console.log('Loaded user info: ' + response.data);
+        var user = { loggedUser: response.data.user, changedUser: response.data.changedUser }
         store.commit('updateSearchCriteria', null);
+        store.commit('updateUser', user);
         next();
       }).catch((error) => {
         console.log('Cannot access URL user.json!' + error);
@@ -64,32 +64,8 @@ router.beforeEach((to, from, next) => {
       next('/alert');
     })
   } else {
-    // Get the user information if we don't do the first call
-    axios.get(i18n.t('url.userInfo', { host: window.webapihost })).then(response => {
-      console.log(response.data);
-      store.commit('updateUser', response.data.user);
-      store.commit('updateChangedUser', response.data.changedUser);
-      next();
-    }).catch((error) => {
-      console.log('Cannot access URL user.json!' + error);
-      // store.commit('updateAlert', { msgType: 'error', msgHeader: 'Error!', msg: 'Authorization failed - ' + error + '<br/>Contact <a href="mailto:techsupport@nih.gov?subject=Change I2E and Data Mart Password">Technical Support</a> for assistance.' });
-      store.commit('updateAlert', { msgType: 'error', msgHeader: 'Error!', msg: i18n.t('error.failedToAuthorized', { error: error, email: 'techsupport@nih.gov' }) });
-      next('/alert');
-    })
-    // if (!store.getters.isAuthorized) {
-    //   console.log('global is Authorized');
-    //   next();
-    // } else {
-    //   console.log('global is NOT Authorized');
-    //   next('/notuser');
-    // }
+    next();
   }
-  // if (!store.getters.isAuthorized) {
-  //   // next('/notuser');
-  //   next();
-  // }
-  // next('/notuser');
-  // next();
 });
 
 Vue.directive('chosen', {
